@@ -52,6 +52,7 @@ pub fn main() anyerror!void {
     //var inputs = std.mem.tokenize(data, "\n");
     var inputs = std.mem.split(data, "\n");
     var p = passport{};
+    var addPassport = false;
     while (inputs.next()) |line| {
         if (line.len > 0) {
             // split the line into key:val pairs, and patch the current passport
@@ -63,6 +64,7 @@ pub fn main() anyerror!void {
                 inline for (@typeInfo(passport).Struct.fields) |field| {
                     if (std.mem.eql(u8, field.name, key)) {
                         @field(p, field.name) = value;
+                        addPassport = true;
                     }
                 }
             }
@@ -71,9 +73,12 @@ pub fn main() anyerror!void {
             print("passport {}\n", .{p});
             try passports.append(p);
             p = passport{};
+            addPassport = false;
         }
     }
-    try passports.append(p);
+    if (addPassport) {
+        try passports.append(p);
+    }
 
     var numCorrect: usize = 0;
     for (passports.items) |v| {
