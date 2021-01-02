@@ -60,30 +60,10 @@ pub fn main() anyerror!void {
                 var kvpair = std.mem.tokenize(kv, ":");
                 var key = kvpair.next().?;
                 var value = kvpair.next().?;
-                comptime var t = @typeInfo(passport);
-                if (std.mem.eql(u8, key, "byr")) {
-                    p.byr = value;
-                }
-                if (std.mem.eql(u8, key, "iyr")) {
-                    p.iyr = value;
-                }
-                if (std.mem.eql(u8, key, "eyr")) {
-                    p.eyr = value;
-                }
-                if (std.mem.eql(u8, key, "hgt")) {
-                    p.hgt = value;
-                }
-                if (std.mem.eql(u8, key, "hcl")) {
-                    p.hcl = value;
-                }
-                if (std.mem.eql(u8, key, "ecl")) {
-                    p.ecl = value;
-                }
-                if (std.mem.eql(u8, key, "pid")) {
-                    p.pid = value;
-                }
-                if (std.mem.eql(u8, key, "cid")) {
-                    p.cid = value;
+                inline for (@typeInfo(passport).Struct.fields) |field| {
+                    if (std.mem.eql(u8, field.name, key)) {
+                        @field(p, field.name) = value;
+                    }
                 }
             }
         }
