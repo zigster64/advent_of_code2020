@@ -101,10 +101,11 @@ fn checkNoNeigbors() anyerror!void {
     _ = noNeigbors.orderedRemove(loI);
 
     std.debug.assert(noNeigbors.items.len == 2);
-    var item0 = noNeigbors.items[0].id;
-    var item1 = noNeigbors.items[1].id;
-    var myItem: usize = (item0 + item1) / 2;
-    print("my ticket is between {} - {}, so its probably {}\n", .{ item0, item1, myItem });
+    var item0 = noNeigbors.items[0];
+    var item1 = noNeigbors.items[1];
+    var myItem: usize = (item0.id + item1.id) / 2;
+    std.debug.assert(std.math.absCast(item0.id - item1.id) == 2);
+    print("my ticket is between {} - {}, so its probably {}\n", .{ item0.id, item1.id, myItem });
     for (noNeigbors.items) |nn| {
         print("{}\n", .{nn});
     }
