@@ -14,19 +14,23 @@ const bagParseError = error{
 const bagCollection = struct {
     map: bagMap,
 
-    fn deinit(self: *bagMap) void {
+    fn deinit(self: *bagCollection) void {
         self.map.deinit();
     }
 
-    fn add(self: *bagMap, b: bag) anyerror!void {
+    fn add(self: *bagCollection, b: bag) anyerror!void {
         return self.map.put(b.color, b);
     }
 
-    fn containCount(self: bagMap, color: string) u32 {
+    fn get(self: *const bagCollection, color: string) ?bag {
+        return self.map.get(color);
+    }
+
+    fn containCount(self: bagCollection, color: string) u32 {
         var count: u32 = 0;
         var bags = self.map.iterator();
         while (bags.next()) |b| {
-            var bagCount = b.value.has(color);
+            var bagCount = b.value.has(color, self, 0);
             if (bagCount > 0) {
                 print("bag '{}' contains '{}' count {}\n", .{ b.value.color, color, bagCount });
                 count += 1;
@@ -39,7 +43,7 @@ const bagCollection = struct {
     }
 };
 
-fn newBagMap(alloc: *std.mem.Allocator) bagMap {
+fn newBagCollection(alloc: *std.mem.Allocator) bagCollection {
     var b = bagCollection{
         .map = bagMap.init(alloc),
     };
@@ -50,8 +54,44 @@ const bag = struct {
     color: string = "",
     contains: std.StringHashMap(u32),
 
-    fn has(self: bag, color: string, otherBags: bagMap) u32 {
+    fn has(self: bag, color: string, otherBags: bagCollection, recurseLevel: u32) u32 {
+        if (recurseLevel > 20) {
+            print("ERROR: too deep recursion\n", .{});
+            return 0;
+        }
         var count = self.contains.get(color) orelse 0;
+
+        if (count == 0) {
+            // we cant hold a bag a this type, so recurse through the bags
+            // we can hold to see if they can hold it instead
+            var cc = self.contains.iterator();
+            while (cc.next()) |c| {
+                print("     recurse {} into {}\n", .{ recurseLevel, c.key });
+                var otherBag = otherBags.get(c.key).?;
+                const otherCount = otherBag.has(color, otherBags, recurseLevel + 1);
+                print("     other {} has {}\n", .{ c.key, otherCount });
+                count += otherCount;
+            }
+        }
+        return count;
+    }
+
+    fn hasInner(self: bag, otherBags: bagCollection, recurseLevel: u32) u32 {
+        if (recurseLevel > 20) {
+            print("ERROR: too deep recursion\n", .{});
+            return 0;
+        }
+
+        var count: u32 = 0;
+        var cc = self.contains.iterator();
+        while (cc.next()) |c| {
+            count += c.value;
+            print("  {} adding {} bags of color '{}'' for total of {}'\n", .{ recurseLevel, c.value, c.key, count });
+            var otherBag = otherBags.get(c.key).?;
+            var otherBagCount = otherBag.hasInner(otherBags, recurseLevel + 1);
+            count += (c.value * otherBagCount);
+            print("  {} other bag {} has {} giving a total of {}\n", .{ recurseLevel, c.key, otherBagCount, count });
+        }
         return count;
     }
 
@@ -117,8 +157,8 @@ fn parseBag(desc: string, debug: bool) anyerror!bag {
     return b;
 }
 
-fn loadBags(from: string, debug: bool) anyerror!bagMap {
-    var bags = newBagMap(std.heap.page_allocator);
+fn loadBags(from: string, debug: bool) anyerror!bagCollection {
+    var bags = newBagCollection(std.heap.page_allocator);
     var inputs = std.mem.split(from, "\n");
     while (inputs.next()) |line| {
         if (line.len > 0) {
@@ -137,12 +177,28 @@ pub fn main() anyerror!void {
 
     var count = bags.containCount("shiny gold");
     print("count = {}\n", .{count});
+    var shiny = bags.get("shiny gold").?;
+    var innerCount = shiny.hasInner(bags, 0);
+    print("inner count of shiny = {}\n", .{innerCount});
 }
 
 test "sample1" {
+    print("\n", .{});
     var bags = try loadBags(@embedFile("test.data"), false);
     defer bags.deinit();
 
     var count = bags.containCount("shiny gold");
     print("count = {}\n", .{count});
+    expect(count == 4);
+}
+
+test "sample2" {
+    print("\n", .{});
+    var bags = try loadBags(@embedFile("test2.data"), false);
+    defer bags.deinit();
+
+    var shiny = bags.get("shiny gold").?;
+    var count = shiny.hasInner(bags, 0);
+    print("count = {}\n", .{count});
+    expect(count == 126);
 }
