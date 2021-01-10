@@ -2,6 +2,8 @@ const std = @import("std");
 const expect = @import("std").testing.expect;
 const string = []const u8;
 const print = std.debug.print;
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var alloc = &gpa.allocator;
 
 const bagMap = std.StringHashMap(bag);
 
@@ -43,9 +45,9 @@ const bagCollection = struct {
     }
 };
 
-fn newBagCollection(alloc: *std.mem.Allocator) bagCollection {
+fn newBagCollection(a: *std.mem.Allocator) bagCollection {
     var b = bagCollection{
-        .map = bagMap.init(alloc),
+        .map = bagMap.init(a),
     };
     return b;
 }
@@ -122,7 +124,7 @@ const bag = struct {
             var words = std.mem.tokenize(b, " ");
             var countString = words.next().?;
             var count = try std.fmt.parseUnsigned(u32, countString, 10);
-            var colors = std.ArrayList(u8).init(std.heap.page_allocator);
+            var colors = std.ArrayList(u8).init(alloc);
             //defer colors.deinit();
             var isFirst = true;
             while (words.next()) |word| {
@@ -151,14 +153,14 @@ const bag = struct {
 
 fn parseBag(desc: string, debug: bool) anyerror!bag {
     var b = bag{
-        .contains = std.StringHashMap(u32).init(std.heap.page_allocator),
+        .contains = std.StringHashMap(u32).init(alloc),
     };
     try b.parse(desc, debug);
     return b;
 }
 
 fn loadBags(from: string, debug: bool) anyerror!bagCollection {
-    var bags = newBagCollection(std.heap.page_allocator);
+    var bags = newBagCollection(alloc);
     var inputs = std.mem.split(from, "\n");
     while (inputs.next()) |line| {
         if (line.len > 0) {
