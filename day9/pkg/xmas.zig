@@ -32,13 +32,10 @@ pub const Xmas = struct {
         var len = self.values.items.len;
         while (offset < len) : (offset += 1) {
             var v = self.values.items[offset];
-            //print("check value {}:{}\n", .{ offset, v });
             var ok = self.checkValue(offset);
             if (!ok) {
-                //print("false\n", .{});
                 return offset;
             }
-            //print("true\n", .{});
         }
         return null;
     }
@@ -51,18 +48,7 @@ pub const Xmas = struct {
             var j: OffsetType = seek_offset;
             while (j < offset) : (j += 1) {
                 if ((i != j) and (self.values.items[i] + self.values.items[j] == looking_for)) {
-                    //print("{}:{}  {}+{}={} is equal !! {}\n", .{
-                    //i,                                           j,
-                    //self.values.items[i],                        self.values.items[j],
-                    //self.values.items[i] + self.values.items[j], lookingFor,
-                    //});
                     return true;
-                } else {
-                    //print("{}:{}  {}+{}={} != {}\n", .{
-                    //i,                                           j,
-                    //self.values.items[i],                        self.values.items[j],
-                    //self.values.items[i] + self.values.items[j], lookingFor,
-                    //});
                 }
             }
         }
@@ -114,9 +100,45 @@ pub fn New(alloc: *std.mem.Allocator, values: string, ps: OffsetType) anyerror!X
     while (lines.next()) |line| {
         var i = try std.fmt.parseUnsigned(XvType, line, 10);
         try x.values.append(i);
-        //print("Value {}\n", .{i});
     }
     std.debug.assert(x.values.items.len > x.preambleSize);
 
     return x;
+}
+
+// Tests for the pkg
+
+const expect = @import("std").testing.expect;
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+var allocator = &gpa.allocator;
+
+test "test5" {
+    print("test 5\n", .{});
+
+    var x = try New(allocator, @embedFile("test.data"), 5);
+    defer x.deinit();
+
+    var ff = x.firstFailingNumber().?;
+    var fv = x.values.items[ff];
+    print("first fail = {} = {}\n", .{ ff, fv });
+    expect(ff == 14);
+    expect(fv == 127);
+    print("test5 pass\n", .{});
+}
+
+test "find weakness" {
+    var x = try New(allocator, @embedFile("test.data"), 5);
+    defer x.deinit();
+
+    var ff = x.firstFailingNumber().?;
+    expect(ff == 14);
+    var cs = x.findContiguousSet(ff).?;
+    print("contiguous set = {}\n", .{cs});
+    expect(cs.from == 2);
+    expect(cs.to == 5);
+    var sum = x.getMinMaxSum(cs.from, cs.to).?;
+    print("minmax sum = {}\n", .{sum});
+    expect(sum == 62);
+
+    print("find weakness pass\n", .{});
 }
