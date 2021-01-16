@@ -16,8 +16,7 @@ const xmas = struct {
         self.values.deinit();
     }
 
-    fn firstFailingNumber(self: xmas) ?xvType {
-        var i: ?xvType = null;
+    fn firstFailingNumber(self: xmas) ?offsetType {
         var offset: offsetType = self.preambleSize;
         var len = self.values.items.len;
         while (offset < len) : (offset += 1) {
@@ -26,11 +25,11 @@ const xmas = struct {
             var ok = self.checkValue(offset);
             if (!ok) {
                 //print("false\n", .{});
-                return v;
+                return offset;
             }
             //print("true\n", .{});
         }
-        return i;
+        return null;
     }
 
     fn checkValue(self: xmas, offset: offsetType) bool {
@@ -58,6 +57,44 @@ const xmas = struct {
         }
         return false;
     }
+
+    const set = struct { from: offsetType, to: offsetType };
+
+    // return the set of contiguous values that add to the element at the given offset
+    fn findContiguousSet(self: xmas, offset: offsetType) ?set {
+        var i: offsetType = 0;
+        var target: xvType = self.values.items[offset];
+        while (i < offset) : (i += 1) {
+            var acc: xvType = self.values.items[i];
+            var j: offsetType = i + 1;
+            while (j < offset) : (j += 1) {
+                acc += self.values.items[j];
+                if (acc == target) {
+                    return set{ .from = i, .to = j };
+                }
+            }
+        }
+        return null;
+    }
+
+    // for the given contiguous range of values by offset, get the min and max and return the sum of them
+    fn getMinMaxSum(self: xmas, from: offsetType, to: offsetType) ?xvType {
+        var min: ?xvType = null;
+        var max: ?xvType = null;
+        var offset: offsetType = from;
+        while (offset <= to) : (offset += 1) {
+            var v = self.values.items[offset];
+            if (min == null or v < min.?) {
+                min = v;
+            }
+            if (max == null or v > max.?) {
+                max = v;
+            }
+        }
+        print("min {} max {} sum {}\n", .{ min, max, min.? + max.? });
+        if (min == null or max == null) return null;
+        return min.? + max.?;
+    }
 };
 
 fn newXmas(alloc: *std.mem.Allocator, values: string, ps: offsetType) anyerror!xmas {
@@ -80,7 +117,10 @@ pub fn main() anyerror!void {
     defer x.deinit();
 
     var ff = x.firstFailingNumber().?;
-    print("first fail = {}\n", .{ff});
+    print("first fail = {}\n", .{x.values.items[ff]});
+    var cs = x.findContiguousSet(ff).?;
+    var sum = x.getMinMaxSum(cs.from, cs.to).?;
+    print("sum of the contiguous block {}-{} is {}\n", .{ cs.from, cs.to, sum });
 }
 
 test "test5" {
@@ -90,6 +130,26 @@ test "test5" {
     defer x.deinit();
 
     var ff = x.firstFailingNumber().?;
-    print("first fail = {}\n", .{ff});
-    expect(ff == 127);
+    var fv = x.values.items[ff];
+    print("first fail = {} = {}\n", .{ ff, fv });
+    expect(ff == 14);
+    expect(fv == 127);
+    print("test5 pass\n", .{});
+}
+
+test "find weakness" {
+    var x = try newXmas(allocator, @embedFile("test.data"), 5);
+    defer x.deinit();
+
+    var ff = x.firstFailingNumber().?;
+    expect(ff == 14);
+    var cs = x.findContiguousSet(ff).?;
+    print("contiguous set = {}\n", .{cs});
+    expect(cs.from == 2);
+    expect(cs.to == 5);
+    var sum = x.getMinMaxSum(cs.from, cs.to).?;
+    print("minmax sum = {}\n", .{sum});
+    expect(sum == 62);
+
+    print("find weakness pass\n", .{});
 }
