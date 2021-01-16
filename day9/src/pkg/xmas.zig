@@ -1,3 +1,17 @@
+// Xmas class - manages a XMAS encrypted list, with some useful functions
+// Attribs
+//      values - arrayList of values
+//      preambleSize - how many preamle entries
+//
+// Methods
+//      firstFailingNumber - returns the offset of the first value that fails the XMAS test
+//      checkValue - returns true if the value ot offset passes the test
+//      findContiguousSet - returns the contiguous set that adds up to the value ot the given offset
+//      getMinMaxSum - returns the sum of the min and max value in the given contiguous range
+//
+// Func
+//      New() returns a new Xmas object
+
 const std = @import("std");
 const string = []const u8;
 const print = std.debug.print;
@@ -30,13 +44,13 @@ pub const Xmas = struct {
     }
 
     pub fn checkValue(self: Xmas, offset: OffsetType) bool {
-        var lookingFor = self.values.items[offset];
-        var seekOffset = offset - self.preambleSize;
-        var i: OffsetType = seekOffset;
+        var looking_for = self.values.items[offset];
+        var seek_offset = offset - self.preambleSize;
+        var i: OffsetType = seek_offset;
         while (i < offset) : (i += 1) {
-            var j: OffsetType = seekOffset;
+            var j: OffsetType = seek_offset;
             while (j < offset) : (j += 1) {
-                if ((i != j) and (self.values.items[i] + self.values.items[j] == lookingFor)) {
+                if ((i != j) and (self.values.items[i] + self.values.items[j] == looking_for)) {
                     //print("{}:{}  {}+{}={} is equal !! {}\n", .{
                     //i,                                           j,
                     //self.values.items[i],                        self.values.items[j],
