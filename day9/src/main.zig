@@ -6,7 +6,7 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = &gpa.allocator;
 
 const xvType = u64;
-const offsetType = u8;
+const offsetType = u32;
 const xmasValues = std.ArrayList(xvType);
 const xmas = struct {
     values: xmasValues,
@@ -78,6 +78,9 @@ pub fn main() anyerror!void {
 
     var x = try newXmas(allocator, @embedFile("input.data"), 25);
     defer x.deinit();
+
+    var ff = x.firstFailingNumber().?;
+    print("first fail = {}\n", .{ff});
 }
 
 test "test5" {
