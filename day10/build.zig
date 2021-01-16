@@ -20,7 +20,7 @@ pub fn build(b: *Builder) void {
 
     // Run
     const day9 = b.addExecutable("adapter", "src/main.zig");
-    day9.addPackagePath("adapter", "pkg/adapter.zig");
+    day9.addPackagePath("adapters", "pkg/adapters.zig");
     day9.setTarget(target);
     day9.setBuildMode(mode);
     day9.install();
@@ -32,6 +32,5 @@ pub fn build(b: *Builder) void {
     }
 
     const run_step = b.step("run", "Run the app");
-    run_step.dependOn(test_step);
     run_step.dependOn(&run_cmd.step);
 }

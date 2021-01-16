@@ -27,7 +27,7 @@ pub const Adapters = struct {
     used: AdapterMap = null,
 
     /// jitter is a measure of the distribution of gaps in the adapter set
-    const jitter = struct {
+    const Jitter = struct {
         count1: usize = 0,
         count2: usize = 0,
         count3: usize = 0,
@@ -50,15 +50,15 @@ pub const Adapters = struct {
         return max.? + 3;
     }
 
-    /// load will fill the a
+    /// load will fill the adapter
     pub fn load(self: *Adapters, data: string) anyerror!void {
         var lines = std.mem.tokenize(data, "\n");
         while (lines.next()) |line| {
-            print("adding line {}\n", .{line});
             try self.list.append(try std.fmt.parseUnsigned(Jolt, line, 10));
         }
     }
 
+    /// print prints out all the adapter values
     pub fn print(self: Adapters, header: string) void {
         print("{}\n", .{header});
         for (self.list.items) |item| {
@@ -66,9 +66,31 @@ pub const Adapters = struct {
         }
     }
 
+    /// sort will sort the adapter values in place
     pub fn sort(self: Adapters) Adapters {
         std.sort.sort(Jolt, self.list.items, {}, comptime std.sort.asc(Jolt));
         return self;
+    }
+
+    /// calc will calculate the jitter
+    pub fn calc(self: Adapters) Jitter {
+        var j = Jitter{};
+        var offset: usize = 0;
+        var last_value: usize = 0;
+        var len: usize = self.list.items.len;
+        for (self.list.items) |item| {
+            var diff = item - last_value;
+            switch (diff) {
+                1 => j.count1 += 1,
+                2 => j.count2 += 1,
+                3 => j.count3 += 1,
+                else => break,
+            }
+            last_value = item;
+        }
+        // and now apply the device
+        j.count3 += 1;
+        return j;
     }
 };
 
@@ -89,10 +111,16 @@ test "test1" {
 
     var adapters = try New(allocator, @embedFile("test.data"));
     defer adapters.deinit();
-    adapters.sort().print("Sorted List Of Adapters");
-    expect(true);
+    adapters.sort().print("sorted adapters");
     var dj = adapters.deviceJoltage();
     print("device joltage is {}\n", .{dj});
+    expect(dj.? == 22);
+    var c = adapters.calc();
+    print("calc jitter {}\n", .{c});
+    expect(c.count1 == 7);
+    expect(c.count2 == 0);
+    expect(c.count3 == 5);
+    print("test1 passed\n", .{});
 }
 
 test "test2" {
@@ -100,8 +128,14 @@ test "test2" {
 
     var adapters = try New(allocator, @embedFile("test2.data"));
     defer adapters.deinit();
-    adapters.sort().print("Sorted List Of Adapters");
-    expect(true);
+    adapters.sort().print("sorted adapters");
     var dj = adapters.deviceJoltage();
     print("device joltage is {}\n", .{dj});
+    var c = adapters.calc();
+    expect(dj.? == 52);
+    print("calc jitter {}\n", .{c});
+    expect(c.count1 == 22);
+    expect(c.count2 == 0);
+    expect(c.count3 == 10);
+    print("test2 passed\n", .{});
 }
