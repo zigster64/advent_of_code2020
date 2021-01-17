@@ -24,7 +24,7 @@ const AdapterMap = std.AutoHashMap(Jolt, usize);
 /// Adapters class contains a list of adapters and functions to stack them
 pub const Adapters = struct {
     list: AdapterList = null,
-    used: AdapterMap = null,
+    alloc: *std.mem.Allocator = null,
 
     /// jitter is a measure of the distribution of gaps in the adapter set
     const Jitter = struct {
@@ -36,7 +36,6 @@ pub const Adapters = struct {
     /// deinit frees the memory
     pub fn deinit(self: *Adapters) void {
         self.list.deinit();
-        self.used.deinit();
     }
 
     /// deviceJoltage tells us what the joltage of the device is, being max adapters + 3
@@ -92,10 +91,68 @@ pub const Adapters = struct {
         j.count3 += 1;
         return j;
     }
+
+    /// permutations returns the number of valid permutations of adapters
+    pub fn permutations(self: Adapters) anyerror!u64 {
+        // theory
+        // starting from the tail and working down :
+        // calc the number of adapters this adapter can service  (last adapter == 1 of course)
+        // as you work down the list, for each branch than an adapter can service, ADD the
+        // value of branch to this value.
+
+        // total permutations == product of all the values accumulated
+        var variations = std.AutoHashMap(usize, usize).init(self.alloc);
+        defer variations.deinit();
+
+        // start with the last one, which always has a value of 1
+        var len = self.list.items.len;
+        var offset = len - 1;
+        var mutations: usize = 1;
+        try variations.put(
+            offset,
+            1,
+        );
+        offset -= 1;
+        print("value {} at offset {} has {} mutations\n", .{
+            self.list.items[len - 1],
+            len - 1,
+            1,
+        });
+        // now walk down the list accumulating all the values
+        while (offset > 0) : (offset -= 1) {
+            mutations = 0;
+            var this_value = self.list.items[offset];
+            var check_offset: usize = offset + 1;
+            print("checking value {}:{}\n", .{ offset, this_value });
+            while (check_offset < len) : (check_offset += 1) {
+                var check_value = self.list.items[check_offset];
+                var diff = check_value - this_value;
+                if (diff > 3) {
+                    break;
+                }
+                var sub_value = variations.get(check_offset).?;
+                print("  subvalue {}:{} has {} mutations\n", .{ check_offset, check_value, sub_value });
+                mutations += sub_value;
+            }
+            print("value {}:{} has {} mutations\n", .{
+                offset,
+                this_value,
+                mutations,
+            });
+            try variations.put(offset, mutations);
+        }
+
+        var mutants = variations.iterator();
+        while (mutants.next()) |mutant| {
+            print("{}->{}\n", .{ mutant.key, mutant.value });
+        }
+        var value = variations.get(1);
+        return value.?;
+    }
 };
 
 pub fn New(alloc: *std.mem.Allocator, data: string) anyerror!Adapters {
-    var adapters = Adapters{ .list = AdapterList.init(alloc), .used = AdapterMap.init(alloc) };
+    var adapters = Adapters{ .alloc = alloc, .list = AdapterList.init(alloc) };
     try adapters.load(data);
     return adapters;
 }
@@ -121,6 +178,9 @@ test "test1" {
     expect(c.count2 == 0);
     expect(c.count3 == 5);
     print("test1 passed\n", .{});
+    var p = try adapters.permutations();
+    print("permutations count {}\n", .{p});
+    expect(p == 8);
 }
 
 test "test2" {
@@ -138,4 +198,7 @@ test "test2" {
     expect(c.count2 == 0);
     expect(c.count3 == 10);
     print("test2 passed\n", .{});
+    var p = try adapters.permutations();
+    print("permutations count {}\n", .{p});
+    expect(p == 19208);
 }
