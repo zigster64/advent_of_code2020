@@ -69,14 +69,14 @@ pub const Seats = struct {
 
     /// cycle will roll over to the next iteration, returns false if the iteration
     /// has the same output as the original, or true if the new map has changed
-    pub fn cycle(self: Seats) bool {
+    pub fn cycle(self: Seats, look: bool) bool {
         var has_changed = false;
         self.swapBuffers();
         for (self.rows.items) |row_data, row| {
             for (row_data) |seat, col| {
                 var i_row = @intCast(Location, row);
                 var i_col = @intCast(Location, col);
-                var adj_count = self.adjacent_count(i_row, i_col);
+                var adj_count = self.adjacent_count(i_row, i_col, look);
                 var s = self.at(i_row, i_col);
                 switch (s) {
                     SeatValues.Empty => {
@@ -86,7 +86,11 @@ pub const Seats = struct {
                         }
                     },
                     SeatValues.Occupied => {
-                        if (adj_count >= 4) {
+                        //print("{}:{} is occupied and raycount is {}:{}\n", .{ row, col, look, adj_count });
+                        if (!look and adj_count >= 4) {
+                            self.put(i_row, i_col, SeatValues.Empty);
+                            has_changed = true;
+                        } else if (look and adj_count >= 5) {
                             self.put(i_row, i_col, SeatValues.Empty);
                             has_changed = true;
                         }
@@ -107,6 +111,23 @@ pub const Seats = struct {
         return @intToEnum(SeatValues, s);
     }
 
+    /// look will raytrace in given direction, till it either hits the end
+    /// or finds a valid seat
+    fn raytrace(self: Seats, start_row: Location, start_col: Location, dx: Location, dy: Location) SeatValues {
+        var row = start_row + dx;
+        var col = start_col + dy;
+        while (true) {
+            switch (self.at(row, col)) {
+                SeatValues.Occupied => return SeatValues.Occupied,
+                SeatValues.Invalid => return SeatValues.Invalid, // hit the end
+                SeatValues.Empty => return SeatValues.Empty, // hit the end
+                else => {}, // continue on to next one
+            }
+            row += dx;
+            col += dy;
+        }
+    }
+
     /// put sets the value of the seat in the new rows
     fn put(self: Seats, row: Location, col: Location, s: SeatValues) void {
         if (row < 0 or row >= @intCast(Location, self.rows.items.len) or col < 0 or col >= @intCast(Location, self.col_count)) {
@@ -116,16 +137,28 @@ pub const Seats = struct {
     }
 
     /// adjacent_count returns the number of adjacent seats
-    fn adjacent_count(self: Seats, row: Location, col: Location) usize {
+    fn adjacent_count(self: Seats, row: Location, col: Location, look: bool) usize {
         var adj_count: usize = 0;
-        if (self.at(row - 1, col - 1) == SeatValues.Occupied) adj_count += 1;
-        if (self.at(row - 1, col) == SeatValues.Occupied) adj_count += 1;
-        if (self.at(row - 1, col + 1) == SeatValues.Occupied) adj_count += 1;
-        if (self.at(row, col - 1) == SeatValues.Occupied) adj_count += 1;
-        if (self.at(row, col + 1) == SeatValues.Occupied) adj_count += 1;
-        if (self.at(row + 1, col - 1) == SeatValues.Occupied) adj_count += 1;
-        if (self.at(row + 1, col) == SeatValues.Occupied) adj_count += 1;
-        if (self.at(row + 1, col + 1) == SeatValues.Occupied) adj_count += 1;
+        if (!look) {
+            if (self.at(row - 1, col - 1) == SeatValues.Occupied) adj_count += 1;
+            if (self.at(row - 1, col) == SeatValues.Occupied) adj_count += 1;
+            if (self.at(row - 1, col + 1) == SeatValues.Occupied) adj_count += 1;
+            if (self.at(row, col - 1) == SeatValues.Occupied) adj_count += 1;
+            if (self.at(row, col + 1) == SeatValues.Occupied) adj_count += 1;
+            if (self.at(row + 1, col - 1) == SeatValues.Occupied) adj_count += 1;
+            if (self.at(row + 1, col) == SeatValues.Occupied) adj_count += 1;
+            if (self.at(row + 1, col + 1) == SeatValues.Occupied) adj_count += 1;
+        } else {
+            if (self.raytrace(row, col, -1, -1) == SeatValues.Occupied) adj_count += 1;
+            if (self.raytrace(row, col, -1, 0) == SeatValues.Occupied) adj_count += 1;
+            if (self.raytrace(row, col, -1, 1) == SeatValues.Occupied) adj_count += 1;
+            if (self.raytrace(row, col, 0, -1) == SeatValues.Occupied) adj_count += 1;
+            if (self.raytrace(row, col, 0, 1) == SeatValues.Occupied) adj_count += 1;
+            if (self.raytrace(row, col, 1, -1) == SeatValues.Occupied) adj_count += 1;
+            if (self.raytrace(row, col, 1, 0) == SeatValues.Occupied) adj_count += 1;
+            if (self.raytrace(row, col, 1, 1) == SeatValues.Occupied) adj_count += 1;
+        }
+
         return adj_count;
     }
 
@@ -157,7 +190,7 @@ test "test1" {
     defer seats.deinit();
     seats.dump("Seats test 1");
     var iteration: usize = 0;
-    while (seats.cycle()) {
+    while (seats.cycle(false)) {
         iteration += 1;
         print("Cycle {}\n", .{iteration});
         seats.dump("Result");
@@ -166,4 +199,29 @@ test "test1" {
     var o = seats.occupied();
     print("there are {} occupied seats\n", .{o});
     expect(o == 37);
+}
+
+test "test21" {
+    var seats = try New(allocator, @embedFile("test21.data"));
+    defer seats.deinit();
+    seats.dump("Seats test 21");
+    var a = seats.adjacent_count(4, 3, true);
+    expect(a == 8);
+}
+
+test "test22" {
+    var seats = try New(allocator, @embedFile("test22.data"));
+    defer seats.deinit();
+    seats.dump("Seats test 1");
+    var iteration: usize = 0;
+    while (seats.cycle(true)) {
+        iteration += 1;
+        print("Cycle {}\n", .{iteration});
+        seats.dump("Result");
+    }
+    print("{} iterations\n", .{iteration});
+    expect(iteration == 6);
+    var o = seats.occupied();
+    print("there are {} occupied seats\n", .{o});
+    expect(o == 26);
 }
