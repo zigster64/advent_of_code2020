@@ -11,6 +11,6 @@ pub fn main() anyerror!void {
 
     var ferry2 = Ferry{ .waypoint_mode = true, .wx = 10, .wy = 1 };
     ferry2.dump();
-    try ferry2.waypoints(data);
+    try ferry2.exec(data);
     ferry2.dump();
 }

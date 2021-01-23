@@ -114,26 +114,6 @@ pub const Ferry = struct {
         }
     }
 
-    pub fn waypoints(self: *Ferry, data: string) anyerror!void {
-        var lines = std.mem.tokenize(data, "\n");
-        while (lines.next()) |line| {
-            const cmd = line[0];
-            const d = try std.fmt.parseInt(Number, line[1..], 10);
-            print("Exec: {c}:{}", .{ cmd, d });
-            switch (cmd) {
-                'N' => self.move(0, d),
-                'S' => self.move(0, -1 * d),
-                'E' => self.move(d, 0),
-                'W' => self.move(-1 * d, 0),
-                'L' => self.turn(-1 * d),
-                'R' => self.turn(1 * d),
-                'F' => self.forward(d),
-                else => print("ERROR: unkown command {}\n", .{cmd}),
-            }
-            print(" -> {}:{} facing {c} M{}\n", .{ self.x, self.y, self.facing, self.manhattan_distance() });
-        }
-    }
-
     pub fn manhattan_distance(self: Ferry) Number {
         const xx = std.math.absCast(self.x);
         const yy = std.math.absCast(self.y);
