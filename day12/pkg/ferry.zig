@@ -23,44 +23,74 @@ pub const Ferry = struct {
     wy: Number = 0,
 
     fn move(self: *Ferry, x: Number, y: Number) void {
-        self.x += x;
-        self.y += y;
+        if (self.waypoint_mode) {
+            self.wx += x;
+            self.wy += y;
+        } else {
+            self.x += x;
+            self.y += y;
+        }
     }
 
     fn turn(self: *Ferry, angle: Number) void {
-        switch (angle) {
-            90, -270 => switch (self.facing) {
-                'N' => self.facing = 'E',
-                'S' => self.facing = 'W',
-                'E' => self.facing = 'S',
-                'W' => self.facing = 'N',
-                else => print("Invalid Facing {}\n", .{self.facing}),
-            },
-            180, -180 => switch (self.facing) {
-                'N' => self.facing = 'S',
-                'S' => self.facing = 'N',
-                'E' => self.facing = 'W',
-                'W' => self.facing = 'E',
-                else => print("Invalid Facing {}\n", .{self.facing}),
-            },
-            270, -90 => switch (self.facing) {
-                'N' => self.facing = 'W',
-                'S' => self.facing = 'E',
-                'E' => self.facing = 'N',
-                'W' => self.facing = 'S',
-                else => print("Invalid Facing {}\n", .{self.facing}),
-            },
-            else => print("Invalid Angle {}\n", .{angle}),
+        if (self.waypoint_mode) {
+            const swx = self.wx;
+            const swy = self.wy;
+            switch (angle) {
+                90, -270 => {
+                    self.wx = swy;
+                    self.wy = -1 * swx;
+                },
+                180, -180 => {
+                    self.wx = -1 * swx;
+                    self.wy = -1 * swy;
+                },
+                270, -90 => {
+                    self.wx = -1 * swy;
+                    self.wy = swx;
+                },
+                else => print("Invalid Angle {}\n", .{angle}),
+            }
+        } else {
+            switch (angle) {
+                90, -270 => switch (self.facing) {
+                    'N' => self.facing = 'E',
+                    'S' => self.facing = 'W',
+                    'E' => self.facing = 'S',
+                    'W' => self.facing = 'N',
+                    else => print("Invalid Facing {}\n", .{self.facing}),
+                },
+                180, -180 => switch (self.facing) {
+                    'N' => self.facing = 'S',
+                    'S' => self.facing = 'N',
+                    'E' => self.facing = 'W',
+                    'W' => self.facing = 'E',
+                    else => print("Invalid Facing {}\n", .{self.facing}),
+                },
+                270, -90 => switch (self.facing) {
+                    'N' => self.facing = 'W',
+                    'S' => self.facing = 'E',
+                    'E' => self.facing = 'N',
+                    'W' => self.facing = 'S',
+                    else => print("Invalid Facing {}\n", .{self.facing}),
+                },
+                else => print("Invalid Angle {}\n", .{angle}),
+            }
         }
     }
 
     fn forward(self: *Ferry, amount: Number) void {
-        switch (self.facing) {
-            'N' => self.y += amount,
-            'S' => self.y -= amount,
-            'E' => self.x += amount,
-            'W' => self.x -= amount,
-            else => print("Invalid Facing {}\n", .{self.facing}),
+        if (self.waypoint_mode) {
+            self.x += (amount * self.wx);
+            self.y += (amount * self.wy);
+        } else {
+            switch (self.facing) {
+                'N' => self.y += amount,
+                'S' => self.y -= amount,
+                'E' => self.x += amount,
+                'W' => self.x -= amount,
+                else => print("Invalid Facing {}\n", .{self.facing}),
+            }
         }
     }
 
